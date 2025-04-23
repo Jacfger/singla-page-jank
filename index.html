@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Text Selector</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+            transition: background-color 0.5s ease;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #text-display {
+            font-size: 24px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        #options-container {
+            position: absolute;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            padding: 10px 0;
+            display: none;
+            max-width: 300px;
+            width: 80%;
+            z-index: 100;
+        }
+
+        .option {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .option:hover, .selected {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .current {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="text-display">test</div>
+    <div id="options-container"></div>
+
+    <script>
+        // DOM elements
+        const body = document.body;
+        const textDisplay = document.getElementById('text-display');
+        const optionsContainer = document.getElementById('options-container');
+
+        // Available options
+        const options = ["test", "hello", "world", "click", "hold", "select", "option"];
+        
+        // Variables for mouse hold detection
+        let mouseDownTimer;
+        let isHolding = false;
+        let currentOption = "test";
+        let isMenuOpen = false;
+
+        // Generate a random color
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        // Generate options list
+        function generateOptions() {
+            optionsContainer.innerHTML = '';
+            
+            options.forEach(option => {
+                const optionElement = document.createElement('div');
+                optionElement.classList.add('option');
+                optionElement.textContent = option;
+                
+                if (option === currentOption) {
+                    optionElement.classList.add('current');
+                }
+                
+                optionElement.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent event from bubbling to body
+                    selectOption(option);
+                });
+                
+                optionsContainer.appendChild(optionElement);
+            });
+        }
+
+        // Select an option
+        function selectOption(option) {
+            currentOption = option;
+            textDisplay.textContent = option;
+            hideOptions();
+        }
+
+        // Show options
+        function showOptions() {
+            generateOptions();
+            
+            // Position the options container near the text display
+            const rect = textDisplay.getBoundingClientRect();
+            optionsContainer.style.top = `${rect.bottom + 10}px`;
+            optionsContainer.style.left = `${(window.innerWidth - optionsContainer.offsetWidth) / 2}px`;
+            
+            optionsContainer.style.display = 'block';
+            isMenuOpen = true;
+        }
+
+        // Hide options
+        function hideOptions() {
+            optionsContainer.style.display = 'none';
+            isMenuOpen = false;
+        }
+
+        // Check if a click is inside the options menu
+        function isClickInsideMenu(e) {
+            return optionsContainer.contains(e.target);
+        }
+
+        // Event Listeners
+        body.addEventListener('mousedown', (e) => {
+            // Only process left clicks
+            if (e.button !== 0) return;
+            
+            // Start timer for hold detection
+            mouseDownTimer = setTimeout(() => {
+                isHolding = true;
+                showOptions();
+            }, 300); // 300ms hold time
+        });
+
+        body.addEventListener('mouseup', (e) => {
+            // Only process left clicks
+            if (e.button !== 0) return;
+            
+            clearTimeout(mouseDownTimer);
+            
+            if (isHolding) {
+                // If we were holding, just clear the hold state
+                isHolding = false;
+            } else {
+                // Only change background if not clicking on the menu
+                if (!isMenuOpen || !isClickInsideMenu(e)) {
+                    const newColor = getRandomColor();
+                    body.style.backgroundColor = newColor;
+                    
+                    // Hide options if they were visible and we're not clicking inside the menu
+                    if (isMenuOpen && !isClickInsideMenu(e)) {
+                        hideOptions();
+                    }
+                }
+            }
+        });
+
+        // Prevent options container clicks from changing background
+        optionsContainer.addEventListener('click', (e) => {
+            e.stopPropagation(); // Stop the click from reaching the body
+        });
+
+        body.addEventListener('mousemove', (e) => {
+            if (isHolding && optionsContainer.style.display === 'block') {
+                // Find which option is being hovered
+                const options = document.querySelectorAll('.option');
+                options.forEach(option => {
+                    option.classList.remove('selected');
+                    
+                    const rect = option.getBoundingClientRect();
+                    if (e.clientY >= rect.top && e.clientY <= rect.bottom &&
+                        e.clientX >= rect.left && e.clientX <= rect.right) {
+                        option.classList.add('selected');
+                    }
+                });
+            }
+        });
+
+        // Initialize with the first option
+        textDisplay.textContent = currentOption;
+    </script>
+</body>
+</html>
