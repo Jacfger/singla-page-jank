@@ -34,7 +34,7 @@
         #button-container.collapsed {
             width: auto;
             min-width: 100px;
-            max-height: 54px; /* Single option height */
+            height: auto;
         }
 
         #button-container.expanded {
@@ -43,11 +43,16 @@
         }
 
         .option {
-            padding: 15px 20px;
+            padding: 12px 20px;
             cursor: pointer;
             transition: background-color 0.2s;
             text-align: center;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 20px;
+            box-sizing: content-box;
         }
 
         .option:hover, .option.selected {
@@ -63,14 +68,13 @@
 </head>
 <body>
     <div id="button-container" class="collapsed">
-        <div id="current-option" class="option current">test</div>
+        <!-- The current option will be inserted here -->
     </div>
 
     <script>
         // DOM elements
         const body = document.body;
         const buttonContainer = document.getElementById('button-container');
-        const currentOption = document.getElementById('current-option');
 
         // Available options
         const options = ["test", "hello", "world", "click", "hold", "select", "option"];
@@ -82,6 +86,7 @@
         let currentSelection = "test";
         let holdPosition = { x: 0, y: 0 };
         let optionElements = [];
+        const OPTION_HEIGHT = 44; // Adjusted height of each option including padding
 
         // Generate a random color
         function getRandomColor() {
@@ -95,26 +100,19 @@
 
         // Generate options inside the button container
         function generateOptions() {
-            // Clear existing options except the current one
-            while (buttonContainer.children.length > 1) {
-                buttonContainer.removeChild(buttonContainer.lastChild);
-            }
-            
+            // Clear existing options
+            buttonContainer.innerHTML = '';
             optionElements = [];
             
             // Add all options
-            options.forEach(option => {
-                if (option === currentSelection) {
-                    // Update the current option
-                    currentOption.textContent = option;
-                    currentOption.classList.add('current');
-                    optionElements.push(currentOption);
-                    return;
-                }
-                
+            options.forEach((option, index) => {
                 const optionElement = document.createElement('div');
                 optionElement.classList.add('option');
                 optionElement.textContent = option;
+                
+                if (option === currentSelection) {
+                    optionElement.classList.add('current');
+                }
                 
                 optionElement.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -129,19 +127,42 @@
         // Select an option
         function selectOption(option) {
             currentSelection = option;
-            currentOption.textContent = option;
             collapseButton();
+            
+            // Update the collapsed button to show the selected option
+            if (!isExpanded) {
+                updateCollapsedButtonText();
+            }
+        }
+
+        // Update the text in the collapsed button
+        function updateCollapsedButtonText() {
+            if (buttonContainer.children.length === 0) {
+                const currentOptionElement = document.createElement('div');
+                currentOptionElement.classList.add('option', 'current');
+                currentOptionElement.textContent = currentSelection;
+                buttonContainer.appendChild(currentOptionElement);
+            } else if (buttonContainer.children.length === 1) {
+                buttonContainer.children[0].textContent = currentSelection;
+                buttonContainer.children[0].classList.add('current');
+            }
         }
 
         // Expand button to show options
         function expandButton() {
             generateOptions();
             
-            // Move button to cursor position
+            // Find the index of the current selection
+            const currentIndex = options.indexOf(currentSelection);
+            
+            // Calculate offset to position the current selection under the cursor
+            const offset = currentIndex * OPTION_HEIGHT;
+            
+            // Position the menu so the current selection is under the cursor
             buttonContainer.style.position = 'absolute';
             buttonContainer.style.left = `${holdPosition.x}px`;
-            buttonContainer.style.top = `${holdPosition.y}px`;
-            buttonContainer.style.transform = 'translate(-50%, -50%)';
+            buttonContainer.style.top = `${holdPosition.y - offset}px`;
+            buttonContainer.style.transform = 'translateX(-50%)';
             
             // Expand the button
             setTimeout(() => {
@@ -160,6 +181,11 @@
             // Reset to center after animation completes
             setTimeout(() => {
                 if (!isExpanded) {
+                    // Clear and add only the current selection
+                    buttonContainer.innerHTML = '';
+                    updateCollapsedButtonText();
+                    
+                    // Move back to center
                     buttonContainer.style.position = 'absolute';
                     buttonContainer.style.left = '50%';
                     buttonContainer.style.top = '50%';
@@ -191,6 +217,15 @@
                     option.classList.add('selected');
                 }
             });
+        }
+
+        // Calculate actual option height after rendering
+        function measureOptionHeight() {
+            if (buttonContainer.children.length > 0) {
+                const firstOption = buttonContainer.children[0];
+                return firstOption.offsetHeight;
+            }
+            return OPTION_HEIGHT; // Fallback to default if not measurable
         }
 
         // Event Listeners
@@ -244,11 +279,20 @@
             buttonContainer.style.left = '50%';
             buttonContainer.style.top = '50%';
             buttonContainer.style.transform = 'translate(-50%, -50%)';
-            currentOption.textContent = currentSelection;
+            updateCollapsedButtonText();
         }
 
         // Initialize the button
         window.addEventListener('load', init);
+        window.addEventListener('load', () => {
+            // Update the actual option height after initial render
+            setTimeout(() => {
+                const actualHeight = measureOptionHeight();
+                if (actualHeight > 0) {
+                    OPTION_HEIGHT = actualHeight;
+                }
+            }, 100);
+        });
     </script>
 </body>
 </html>
