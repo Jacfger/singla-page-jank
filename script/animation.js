@@ -1,0 +1,221 @@
+// DOM elements
+const body = document.body;
+const buttonContainer = document.getElementById('button-container');
+
+// Available options
+const options = ["test", "hello", "world", "click", "hold", "select", "option"];
+
+// Variables for mouse hold detection
+let mouseDownTimer;
+let isHolding = false;
+let isExpanded = false;
+let currentSelection = "test";
+let holdPosition = { x: 0, y: 0 };
+let optionElements = [];
+let OPTION_HEIGHT = 44; // Default height of each option including padding
+
+// Generate a random color
+function getRandomColor() {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
+// Generate options inside the button container
+function generateOptions() {
+  // Clear existing options
+  buttonContainer.innerHTML = '';
+  optionElements = [];
+
+  // Add all options
+  options.forEach((option, index) => {
+    const optionElement = document.createElement('div');
+    optionElement.classList.add('option');
+    optionElement.textContent = option;
+
+    if (option === currentSelection) {
+      optionElement.classList.add('current');
+      optionElement.setAttribute('data-is-current', 'true');
+    }
+
+    optionElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectOption(option);
+    });
+
+    buttonContainer.appendChild(optionElement);
+    optionElements.push(optionElement);
+  });
+}
+
+// Select an option
+function selectOption(option) {
+  currentSelection = option;
+  collapseButton();
+
+  // Update the collapsed button to show the selected option
+  if (!isExpanded) {
+    updateCollapsedButtonText();
+  }
+}
+
+// Update the text in the collapsed button
+function updateCollapsedButtonText() {
+  if (buttonContainer.children.length === 0) {
+    const currentOptionElement = document.createElement('div');
+    currentOptionElement.classList.add('option', 'current');
+    currentOptionElement.textContent = currentSelection;
+    buttonContainer.appendChild(currentOptionElement);
+  } else if (buttonContainer.children.length === 1) {
+    buttonContainer.children[0].textContent = currentSelection;
+    buttonContainer.children[0].classList.add('current');
+  }
+}
+
+// Expand button to show options
+function expandButton() {
+  generateOptions();
+
+  // Find the index of the current selection
+  const currentIndex = options.indexOf(currentSelection);
+
+  // Position the menu first (temporarily) to measure the current item
+  buttonContainer.style.position = 'absolute';
+  buttonContainer.style.left = '-1000px'; // Position off-screen for measurement
+  buttonContainer.style.top = '0';
+  buttonContainer.classList.add('expanded');
+
+  // Measure actual heights after rendering
+  setTimeout(() => {
+    // Find the current option element and measure its position
+    let currentElement = null;
+    let offsetToCenter = 0;
+
+    // Calculate total offset to position the current item at the cursor
+    let totalOffset = 0;
+    for (let i = 0; i < buttonContainer.children.length; i++) {
+      const child = buttonContainer.children[i];
+      if (i < currentIndex) {
+        totalOffset += child.offsetHeight;
+      } else if (i === currentIndex) {
+        currentElement = child;
+        // Add half the height of the current element to center it under the cursor
+        offsetToCenter = child.offsetHeight / 2;
+        break;
+      }
+    }
+
+    // Position the menu so the center of the current selection is under the cursor
+    buttonContainer.style.left = `${holdPosition.x}px`;
+    buttonContainer.style.top = `${holdPosition.y - totalOffset - offsetToCenter}px`;
+    buttonContainer.style.transform = 'translateX(-50%)';
+
+    isExpanded = true;
+  }, 10);
+}
+
+// Collapse button to original state
+function collapseButton() {
+  buttonContainer.classList.remove('expanded');
+  buttonContainer.classList.add('collapsed');
+
+  // Reset to center after animation completes
+  setTimeout(() => {
+    if (!isExpanded) {
+      // Clear and add only the current selection
+      buttonContainer.innerHTML = '';
+      updateCollapsedButtonText();
+
+      // Move back to center
+      buttonContainer.style.position = 'absolute';
+      buttonContainer.style.left = '50%';
+      buttonContainer.style.top = '50%';
+      buttonContainer.style.transform = 'translate(-50%, -50%)';
+    }
+  }, 300);
+
+  isExpanded = false;
+}
+
+// Store the current mouse position for the hold
+function setHoldPosition(e) {
+  holdPosition = {
+    x: e.clientX,
+    y: e.clientY
+  };
+}
+
+// Handle hover highlighting in the expanded menu
+function handleHoverHighlight(e) {
+  if (!isExpanded) return;
+
+  optionElements.forEach(option => {
+    option.classList.remove('selected');
+
+    const rect = option.getBoundingClientRect();
+    if (e.clientY >= rect.top && e.clientY <= rect.bottom &&
+      e.clientX >= rect.left && e.clientX <= rect.right) {
+      option.classList.add('selected');
+    }
+  });
+}
+
+// Event Listeners
+body.addEventListener('mousedown', (e) => {
+  // Only process left clicks
+  if (e.button !== 0) return;
+
+  setHoldPosition(e);
+
+  // Start timer for hold detection
+  mouseDownTimer = setTimeout(() => {
+    isHolding = true;
+    expandButton();
+  }, 300); // 300ms hold time
+});
+
+body.addEventListener('mouseup', (e) => {
+  // Only process left clicks
+  if (e.button !== 0) return;
+
+  clearTimeout(mouseDownTimer);
+
+  if (isHolding) {
+    // If we were holding, just clear the hold state
+    isHolding = false;
+  } else {
+    // Change background color on simple click if menu is not expanded
+    if (!isExpanded) {
+      const newColor = getRandomColor();
+      body.style.backgroundColor = newColor;
+    } else {
+      // If the menu is expanded and we click outside, collapse it
+      if (!buttonContainer.contains(e.target)) {
+        collapseButton();
+      }
+    }
+  }
+});
+
+// Event delegation for hovering over options
+body.addEventListener('mousemove', handleHoverHighlight);
+
+// Prevent clicks on the button container from changing the background
+buttonContainer.addEventListener('click', (e) => {
+  e.stopPropagation();
+});
+
+// Initialize
+function init() {
+  buttonContainer.style.position = 'absolute';
+  buttonContainer.style.left = '50%';
+  buttonContainer.style.top = '50%';
+  buttonContainer.style.transform = 'translate(-50%, -50%)';
+  updateCollapsedButtonText();
+}
+
+// Initialize the button
+window.addEventListener('load', init);
